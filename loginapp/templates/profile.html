@@ -1,39 +1,205 @@
 {% extends 'userbase.html' %}
 
-{% block title %}User Profile{% endblock %}
+{% block title %}{{ profile.role.title() }} Profile{% endblock %}
 
 {# Set the active page to be highlighted in the navigation bar. #}
 {% set active_page = 'profile' %}
 
 {% block content %}
-<section class="container py-5">
+<!-- 页面头部 -->
+<section class="container py-4">
     <div class="row justify-content-center text-center">
         <div class="col-lg-7">
-            <h1>{{ profile.role.title() }} Profile</h1>
-            <p class="lead text-muted">Here's everything we know about you.</p>
+            <h1 class="h3">{{ profile.role.title() }} Profile</h1>
+            <p class="text-muted small">Manage your profile information</p>
+            
+            <!-- Flash 消息展示 -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+            
+            {% if message %}
+            <div class="alert alert-{{ message.type }} small">{{ message.text }}</div>
+            {% endif %}
         </div>
     </div>
 </section>
-    
-<section class="container">
-    <form>
-        <div class="row justify-content-center">
-            <div class="col-lg-3 mb-3">
-                <label for="username" class="form-label">Username</label>
-                <input type="text" class="form-control" id="username" name="username" value="{{ profile.username }}" disabled>
-            </div>
-            <div class="col-lg-3 mb-3">
-                <label for="useremail" class="form-label">Email</label>
-                <input type="text" class="form-control" id="useremail" name="useremail" value="{{ profile.email }}" disabled>
+
+<!-- 主要内容区 -->
+<section class="container pb-4">
+    <div class="row justify-content-center">
+        <!-- PC端：侧边栏布局 -->
+        <div class="col-lg-3 d-none d-lg-block">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body text-center">
+                    <div class="mb-3">
+                        {% if profile.profile_image %}
+                            <img src="{{ url_for('get_profile_image', filename=profile.profile_image) }}" 
+                                 class="rounded-circle object-fit-cover border border-1" 
+                                 width="120" 
+                                 height="120">
+                        {% else %}
+                            <img src="{{ url_for('static', filename='default-avatar.png') }}" 
+                                 class="rounded-circle border border-1" 
+                                 width="120" 
+                                 height="120">
+                        {% endif %}
+                    </div>
+                    <h5 class="mb-1">{{ profile.first_name }} {{ profile.last_name }}</h5>
+                    <p class="text-muted small mb-3">{{ profile.role.title() }}</p>
+                    <form action="{{ url_for('update_profile_image') }}" method="post" enctype="multipart/form-data">
+                        <div class="d-grid gap-2">
+                            <div class="mb-3">
+                                <input type="file" 
+                                       class="form-control form-control-sm" 
+                                       name="profile_image" 
+                                       accept=".jpg,.jpeg,.png,.gif,.webp">
+                                <div class="form-text">Supported formats: .jpg, .jpeg, .png, .gif, .webp only (Max: 5MB)</div>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-sm">Upload Photo</button>
+                            {% if profile.profile_image %}
+                            <button type="submit" name="delete_image" value="true" class="btn btn-outline-danger btn-sm">Remove Photo</button>
+                            {% endif %}
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
-        <div class="my-3 row justify-content-center">
-            <div class="col-lg-6">
-                <p>You could make the fields on this form editable, and add buttons to let users save or cancel any changes they make.</p>
-                <hr />
-                <p><small><em>Hint: Remember to think about validation and error handling: for example, what happens if users enter an invalid email address or a username that's already taken?</em></small></p>
+
+        <!-- 平板/手机端：顶部头像布局 -->
+        <div class="col-12 d-lg-none text-center mb-4">
+            <!-- 头像预览区域 -->
+            <div class="position-relative d-inline-block mb-3">
+                {% if profile.profile_image %}
+                    <img src="{{ url_for('get_profile_image', filename=profile.profile_image) }}" 
+                         class="rounded-circle object-fit-cover border border-1" 
+                         width="100" 
+                         height="100">
+                {% else %}
+                    <img src="{{ url_for('static', filename='default-avatar.png') }}" 
+                         class="rounded-circle border border-1" 
+                         width="100" 
+                         height="100">
+                {% endif %}
+                
+                <!-- 覆盖在头像上的编辑按钮 -->
+                <label for="mobile-profile-image" class="position-absolute bottom-0 end-0 bg-primary rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; margin: 0 -4px -4px 0;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="white" viewBox="0 0 16 16">
+                        <path d="M10.5 8.5a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z"/>
+                        <path d="M2 4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-1.172a2 2 0 0 1-1.414-.586l-.828-.828A2 2 0 0 0 9.172 2H6.828a2 2 0 0 0-1.414.586l-.828.828A2 2 0 0 1 3.172 4H2zm.5 2a.5.5 0 1 1 0-1 .5.5 0 0 1 0 1zm9 2.5a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0z"/>
+                    </svg>
+                </label>
+            </div>
+
+            <!-- 隐藏的文件上传表单 -->
+            <form action="{{ url_for('update_profile_image') }}" method="post" enctype="multipart/form-data" id="mobile-upload-form">
+                <input type="file" 
+                       class="d-none" 
+                       id="mobile-profile-image"
+                       name="profile_image" 
+                       accept=".jpg,.jpeg,.png,.gif,.webp"
+                       onchange="document.getElementById('mobile-upload-form').submit();">
+            </form>
+
+            <!-- 删除按钮，仅在有头像时显示 -->
+            {% if profile.profile_image %}
+            <form action="{{ url_for('update_profile_image') }}" method="post">
+                <button type="submit" name="delete_image" value="true" class="btn btn-outline-danger btn-sm rounded-pill px-4">
+                    Remove photo
+                </button>
+            </form>
+            {% endif %}
+        </div>
+
+        <!-- 个人信息表单 -->
+        <div class="col-12 col-lg-7">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <form action="{{ url_for('update_profile') }}" method="post">
+                        <div class="row g-3">
+                            <div class="col-12 col-sm-6">
+                                <label class="form-label small text-muted">Username</label>
+                                <input type="text" class="form-control form-control-sm" value="{{ profile.username }}" disabled>
+                            </div>
+                            
+                            <div class="col-12 col-sm-6">
+                                <label class="form-label small text-muted">Email *</label>
+                                <input type="email" 
+                                       class="form-control form-control-sm{% if email_error %} is-invalid{% endif %}" 
+                                       name="email" value="{{ profile.email }}" required>
+                                <div class="invalid-feedback small">{{ email_error }}</div>
+                            </div>
+
+                            <div class="col-12 col-sm-6">
+                                <label class="form-label small text-muted">First Name *</label>
+                                <input type="text" 
+                                       class="form-control form-control-sm{% if first_name_error %} is-invalid{% endif %}" 
+                                       name="first_name" value="{{ profile.first_name }}" required>
+                                <div class="invalid-feedback small">{{ first_name_error }}</div>
+                            </div>
+
+                            <div class="col-12 col-sm-6">
+                                <label class="form-label small text-muted">Last Name *</label>
+                                <input type="text" 
+                                       class="form-control form-control-sm{% if last_name_error %} is-invalid{% endif %}" 
+                                       name="last_name" value="{{ profile.last_name }}" required>
+                                <div class="invalid-feedback small">{{ last_name_error }}</div>
+                            </div>
+
+                            <div class="col-12">
+                                <label class="form-label small text-muted">Location *</label>
+                                <input type="text" 
+                                       class="form-control form-control-sm{% if location_error %} is-invalid{% endif %}" 
+                                       name="location" value="{{ profile.location }}" required>
+                                <div class="invalid-feedback small">{{ location_error }}</div>
+                            </div>
+
+                            <div class="col-12 text-center mt-4">
+                                <button type="submit" class="btn btn-primary">Save Changes</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
-    </form>
+    </div>
 </section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Example starter JavaScript for disabling form submission if there are invalid fields
+(function () {
+  'use strict'
+
+  // Fetch all the forms we want to apply custom Bootstrap validation styles to
+  var forms = document.querySelectorAll('.needs-validation')
+
+  // Loop over them and prevent submission
+  Array.prototype.slice.call(forms)
+    .forEach(function (form) {
+      form.addEventListener('submit', function (event) {
+        if (!form.checkValidity()) {
+          event.preventDefault()
+          event.stopPropagation()
+        }
+
+        form.classList.add('was-validated')
+      }, false)
+    })
+})()
+
+// 初始化所有的tooltips
+var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+    return new bootstrap.Tooltip(tooltipTriggerEl)
+})
+</script>
 {% endblock %}

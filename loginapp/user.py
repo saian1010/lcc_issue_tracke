@@ -1,8 +1,22 @@
 from loginapp import app
 from loginapp import db
-from flask import redirect, render_template, request, session, url_for
+from flask import flash, redirect, render_template, request, send_from_directory, session, url_for
 from flask_bcrypt import Bcrypt
 import re
+from PIL import Image, ExifTags
+import os
+import time
+
+# Create upload folder constant
+UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+# Ensure the upload directory exists
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+# Define allowed file extensions
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # Create an instance of the Bcrypt class, which we'll be using to hash user
 # passwords during login and registration.
@@ -242,13 +256,191 @@ def profile():
     if 'loggedin' not in session:
          return redirect(url_for('login'))
 
-    # Retrieve user profile from the database.
     with db.get_cursor() as cursor:
-        cursor.execute('SELECT username, email, role FROM users WHERE user_id = %s;',
-                       (session['user_id'],))
+        cursor.execute('''
+            SELECT username, email, first_name, last_name, location, 
+                   role, status, profile_image 
+            FROM users 
+            WHERE user_id = %s;
+        ''', (session['user_id'],))
         profile = cursor.fetchone()
 
     return render_template('profile.html', profile=profile)
+
+@app.route('/update_profile', methods=['POST'])
+def update_profile():
+    """Update user profile information."""
+    if 'loggedin' not in session:
+        return redirect(url_for('login'))
+
+    # Get form data
+    email = request.form.get('email', '').strip()
+    first_name = request.form.get('first_name', '').strip()
+    last_name = request.form.get('last_name', '').strip()
+    location = request.form.get('location', '').strip()
+
+    # Initialize error variables
+    errors = {}
+
+    # Check if all required fields are present
+    if not all([email, first_name, last_name, location]):
+        if not email:
+            errors['email_error'] = 'Email is required.'
+        if not first_name:
+            errors['first_name_error'] = 'First name is required.'
+        if not last_name:
+            errors['last_name_error'] = 'Last name is required.'
+        if not location:
+            errors['location_error'] = 'Location is required.'
+    else:
+        # Validate fields
+        if len(email) > 320:
+            errors['email_error'] = 'Email address cannot exceed 320 characters.'
+        elif not re.match(r'[^@]+@[^@]+\.[^@]+', email):
+            errors['email_error'] = 'Invalid email address.'
+
+        if len(first_name) > 50:
+            errors['first_name_error'] = 'First name cannot exceed 50 characters.'
+
+        if len(last_name) > 50:
+            errors['last_name_error'] = 'Last name cannot exceed 50 characters.'
+
+        if len(location) > 50:
+            errors['location_error'] = 'Location cannot exceed 50 characters.'
+
+    if errors:
+        # If there are errors, re-fetch profile and return with errors
+        with db.get_cursor() as cursor:
+            cursor.execute('''
+                SELECT username, email, first_name, last_name, location, 
+                       role, status, profile_image 
+                FROM users 
+                WHERE user_id = %s;
+            ''', (session['user_id'],))
+            profile = cursor.fetchone()
+        return render_template('profile.html', profile=profile, **errors)
+
+    # Update profile in database
+    with db.get_cursor() as cursor:
+        cursor.execute('''
+            UPDATE users 
+            SET email = %s, first_name = %s, last_name = %s, location = %s 
+            WHERE user_id = %s;
+        ''', (email, first_name, last_name, location, session['user_id']))
+
+    # Add success message
+    flash('Profile updated successfully', 'success')
+    return redirect(url_for('profile'))
+
+def fix_image_orientation(image):
+    try:
+        # 获取EXIF数据
+        for orientation in ExifTags.TAGS.keys():
+            if ExifTags.TAGS[orientation] == 'Orientation':
+                break
+        
+        exif = dict(image._getexif().items())
+
+        if orientation in exif:
+            if exif[orientation] == 3:
+                image = image.rotate(180, expand=True)
+            elif exif[orientation] == 6:
+                image = image.rotate(270, expand=True)
+            elif exif[orientation] == 8:
+                image = image.rotate(90, expand=True)
+                
+    except (AttributeError, KeyError, IndexError):
+        # 某些图片可能没有EXIF信息，直接跳过
+        pass
+    
+    return image
+
+@app.route('/update_profile_image', methods=['POST'])
+def update_profile_image():
+    """Update user profile image."""
+    if 'loggedin' not in session:
+        return redirect(url_for('login'))
+
+    # Handle image deletion
+    if 'delete_image' in request.form:
+        with db.get_cursor() as cursor:
+            # Get current image filename
+            cursor.execute('SELECT profile_image FROM users WHERE user_id = %s;', 
+                         (session['user_id'],))
+            result = cursor.fetchone()
+            if result and result['profile_image']:
+                # Delete the file
+                try:
+                    os.remove(os.path.join(UPLOAD_FOLDER, result['profile_image']))
+                except OSError:
+                    pass  # File might not exist
+                
+                # Update database
+                cursor.execute('UPDATE users SET profile_image = NULL WHERE user_id = %s;',
+                             (session['user_id'],))
+        
+        return redirect(url_for('profile'))
+
+    # Handle image upload
+    if 'profile_image' not in request.files:
+        flash('No file uploaded', 'danger')
+        return redirect(url_for('profile'))
+    
+    file = request.files['profile_image']
+    if file.filename == '':
+        flash('No file selected', 'danger')
+        return redirect(url_for('profile'))
+
+    if file and allowed_file(file.filename):
+        try:
+            # 读取图片并修复方向
+            image = Image.open(file)
+            image = fix_image_orientation(image)
+            
+            # 获取原始文件扩展名
+            original_extension = os.path.splitext(file.filename)[1].lower()
+            if original_extension.startswith('.'):
+                original_extension = original_extension[1:]
+            
+            # 生成文件名
+            filename = f"profile_{session['user_id']}_{int(time.time() * 1000)}.{original_extension}"
+            
+            # 保存处理后的图片
+            image.save(os.path.join(UPLOAD_FOLDER, filename))
+            
+            # 更新数据库
+            with db.get_cursor() as cursor:
+                # Delete old image if exists
+                cursor.execute('SELECT profile_image FROM users WHERE user_id = %s;',
+                             (session['user_id'],))
+                result = cursor.fetchone()
+                if result and result['profile_image']:
+                    try:
+                        os.remove(os.path.join(UPLOAD_FOLDER, result['profile_image']))
+                    except OSError:
+                        pass
+
+                # Update with new image
+                cursor.execute('UPDATE users SET profile_image = %s WHERE user_id = %s;',
+                             (filename, session['user_id']))
+
+            flash('Profile image updated successfully', 'success')
+            
+        except Exception as e:
+            flash('Error processing image', 'danger')
+            print(f"Error: {str(e)}")
+            
+        return redirect(url_for('profile'))
+    else:
+        flash('Invalid file format. Please upload a valid image file.', 'danger')
+
+    return redirect(url_for('profile'))
+
+@app.route('/profile/image/<filename>')
+def get_profile_image(filename):
+    """Serve profile images."""
+    return send_from_directory(UPLOAD_FOLDER, filename)
+
 
 @app.route('/logout')
 def logout():
