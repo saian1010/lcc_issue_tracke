@@ -27,3 +27,4 @@ from loginapp import user
 from loginapp import customer
 from loginapp import staff
 from loginapp import admin
+from loginapp import issues

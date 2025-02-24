@@ -1,0 +1,22 @@
+{% extends "userbase.html" %}
+{% set active_page = 'issues' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Issue List</h2>
+    
+    <a href="{{ url_for('create_issue') }}" class="btn btn-primary mb-3">Create New Issue</a>
+
+    <div class="list-group">
+    {% for issue in issues %}
+        <a href="{{ url_for('view_issue', issue_id=issue.issue_id) }}" class="list-group-item list-group-item-action">
+            <div class="d-flex w-100 justify-content-between">
+                <h5 class="mb-1">{{ issue.summary }}</h5>
+                <small>{{ issue.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+            </div>
+            <p class="mb-1">Status: {{ issue.status }}</p>
+        </a>
+    {% endfor %}
+    </div>
+</div>
+{% endblock %} 

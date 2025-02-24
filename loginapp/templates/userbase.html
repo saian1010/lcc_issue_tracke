@@ -38,6 +38,9 @@
 						<li class="nav-item">
 							<a class="nav-link{{' active' if active_page=='home' else ''}}" href="{% if session['role'] == 'visitor' %}{{ url_for('customer_home') }}{% elif session['role'] == 'helper' %}{{ url_for('staff_home') }}{% elif session['role'] == 'admin' %}{{ url_for('admin_home') }}{% endif %}">Home</a>
 						</li>
+						<li class="nav-item">
+							<a class="nav-link{{' active' if active_page=='issues' else ''}}" href="{{ url_for('list_issues') }}">Issues</a>
+						</li>
 						{# Add any new top-level menu items here. #}
 					</ul>
 					<ul class="navbar-nav">
