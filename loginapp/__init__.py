@@ -1,6 +1,7 @@
 # This script runs automatically when our `loginapp` module is first loaded,
 # and handles all the setup for our Flask app.
-from flask import Flask
+from flask import Flask, send_from_directory
+import os
 
 app = Flask(__name__)
 
@@ -28,3 +29,9 @@ from loginapp import customer
 from loginapp import staff
 from loginapp import admin
 from loginapp import issues
+
+# Add route for uploaded files
+@app.route('/loginapp/uploads/<path:filename>')
+def uploaded_file(filename):
+    uploads_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+    return send_from_directory(uploads_dir, filename)

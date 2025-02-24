@@ -49,4 +49,4 @@ from loginapp import app
 # then start our Flask app on a local development server. To learn more about
 # how we check for this, refer to https://realpython.com/if-name-main-python/.
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=True)
