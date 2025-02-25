@@ -4,7 +4,6 @@
 {% block content %}
 <div class="container mt-4">
     <h2 class="mb-3">Issue List</h2>
-
     <!-- Tabs -->
     <ul class="nav nav-tabs mb-4">
         <li class="nav-item">
@@ -126,7 +125,28 @@
                         <td>{{ issue[6] }}</td>
                         <td>{{ issue[4] }}</td>
                         <td>
-                            <a href="{{ url_for('view_issue', issue_id=issue[0]) }}" class="btn btn-sm btn-primary">View</a>
+                            <div class="d-flex gap-2">
+                                <a href="{{ url_for('view_issue', issue_id=issue[0]) }}" class="btn btn-primary btn-sm">View</a>
+                                {% if session['role'] in ['helper', 'admin'] %}
+                                    {% if issue[5] == 'new' %}
+                                        <a href="{{ url_for('change_issue_status', issue_id=issue[0], new_status='open') }}" 
+                                           class="btn btn-outline-primary btn-sm">Open</a>
+                                    {% elif issue[5] == 'open' %}
+                                        <a href="{{ url_for('change_issue_status', issue_id=issue[0], new_status='stalled') }}" 
+                                           class="btn btn-outline-warning btn-sm">Stalled</a>
+                                        <a href="{{ url_for('change_issue_status', issue_id=issue[0], new_status='resolved') }}" 
+                                           class="btn btn-outline-success btn-sm">Resolve</a>
+                                    {% elif issue[5] == 'stalled' %}
+                                        <a href="{{ url_for('change_issue_status', issue_id=issue[0], new_status='open') }}" 
+                                           class="btn btn-outline-primary btn-sm">Open</a>
+                                        <a href="{{ url_for('change_issue_status', issue_id=issue[0], new_status='resolved') }}" 
+                                           class="btn btn-outline-success btn-sm">Resolve</a>
+                                    {% elif issue[5] == 'resolved' %}
+                                        <a href="{{ url_for('change_issue_status', issue_id=issue[0], new_status='open') }}" 
+                                           class="btn btn-outline-primary btn-sm">Reopen</a>
+                                    {% endif %}
+                                {% endif %}
+                            </div>
                         </td>
                     </tr>
                 {% endfor %}
@@ -150,8 +170,27 @@
                     <div>{{ issue[6] }}</div>
                     <div>{{ issue[4] }}</div>
                 </div>
-                <div class="mt-2">
-                    <a href="{{ url_for('view_issue', issue_id=issue[0]) }}" class="btn btn-sm btn-primary">View</a>
+                <div class="mt-2 d-flex gap-2">
+                    <a href="{{ url_for('view_issue', issue_id=issue[0]) }}" class="btn btn-primary btn-sm">View</a>
+                    {% if session['role'] in ['helper', 'admin'] %}
+                        {% if issue[5] == 'new' %}
+                            <a href="{{ url_for('change_issue_status', issue_id=issue[0], new_status='open') }}" 
+                               class="btn btn-outline-primary btn-sm">Open</a>
+                        {% elif issue[5] == 'open' %}
+                            <a href="{{ url_for('change_issue_status', issue_id=issue[0], new_status='stalled') }}" 
+                               class="btn btn-outline-warning btn-sm">Stalled</a>
+                            <a href="{{ url_for('change_issue_status', issue_id=issue[0], new_status='resolved') }}" 
+                               class="btn btn-outline-success btn-sm">Resolve</a>
+                        {% elif issue[5] == 'stalled' %}
+                            <a href="{{ url_for('change_issue_status', issue_id=issue[0], new_status='open') }}" 
+                               class="btn btn-outline-primary btn-sm">Open</a>
+                            <a href="{{ url_for('change_issue_status', issue_id=issue[0], new_status='resolved') }}" 
+                               class="btn btn-outline-success btn-sm">Resolve</a>
+                        {% elif issue[5] == 'resolved' %}
+                            <a href="{{ url_for('change_issue_status', issue_id=issue[0], new_status='open') }}" 
+                               class="btn btn-outline-primary btn-sm">Reopen</a>
+                        {% endif %}
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -162,20 +201,21 @@
     <nav aria-label="Page navigation">
         <ul class="pagination justify-content-center">
             <li class="page-item {{ 'disabled' if current_page == 1 }}">
-                <a class="page-link" href="{{ url_for('list_issues', page=current_page-1, search_name=search_name, status=status_filter) if current_page > 1 else '#' }}">Previous</a>
+                <a class="page-link" href="{{ url_for('list_issues', page=current_page-1, search_name=search_name, status=status_filter, resolved=request.args.get('resolved', '')) if current_page > 1 else '#' }}">Previous</a>
             </li>
             
             {% for page_num in range(1, total_pages + 1) %}
             <li class="page-item {{ 'active' if page_num == current_page }}">
-                <a class="page-link" href="{{ url_for('list_issues', page=page_num, search_name=search_name, status=status_filter) }}">{{ page_num }}</a>
+                <a class="page-link" href="{{ url_for('list_issues', page=page_num, search_name=search_name, status=status_filter, resolved=request.args.get('resolved', '')) }}">{{ page_num }}</a>
             </li>
             {% endfor %}
             
             <li class="page-item {{ 'disabled' if current_page == total_pages }}">
-                <a class="page-link" href="{{ url_for('list_issues', page=current_page+1, search_name=search_name, status=status_filter) if current_page < total_pages else '#' }}">Next</a>
+                <a class="page-link" href="{{ url_for('list_issues', page=current_page+1, search_name=search_name, status=status_filter, resolved=request.args.get('resolved', '')) if current_page < total_pages else '#' }}">Next</a>
             </li>
         </ul>
     </nav>
     {% endif %}
 </div>
+
 {% endblock %} 

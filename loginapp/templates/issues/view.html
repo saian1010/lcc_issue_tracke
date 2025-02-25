@@ -3,45 +3,54 @@
 
 {% block content %}
 <div class="container mt-4">
+    <!-- 页面头部：只保留返回按钮 -->
+    <div class="mb-4">
+        <a href="{{ url_for('list_issues') }}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left"></i> Back to List
+        </a>
+    </div>
+
     {% if issue %}
         <!-- Issue Card -->
-        <div class="card mb-4">
-            <!-- Issue Header -->
-            <div class="card-header">
-                <div class="d-flex justify-content-between align-items-center">
-                    <h2 class="h4 mb-0">Issue #{{ issue[0] }}</h2>
+        <div class="card border-0 shadow mb-4">
+            <!-- Issue Content -->
+            <div class="card-body">
+                <!-- Issue Header: Title, ID and Status -->
+                <div class="d-flex justify-content-between align-items-start mb-4">
+                    <div>
+                        <div class="text-muted small mb-2">Issue #{{ issue[0] }}</div>
+                        <h2 class="h4 mb-0">{{ issue[2] }}</h2>
+                    </div>
                     <span class="badge bg-{{ {
                         'new': 'info',
                         'open': 'primary',
                         'stalled': 'warning',
                         'resolved': 'success'
-                    }[issue[4]] }} text-nowrap">{{ issue[4] }}</span>
+                    }[issue[4]] }}">{{ issue[4] }}</span>
                 </div>
-            </div>
-            
-            <!-- Issue Content -->
-            <div class="card-body">
+
                 <!-- Author Info -->
                 <div class="d-flex align-items-center mb-3">
                     <img src="{{ issue[8] }}" 
-                         class="rounded-circle me-2 border border-1" 
+                         class="rounded-circle me-2 border" 
                          alt="Profile picture" 
-                         style="width: 32px; height: 32px; object-fit: cover;">
+                         width="32" 
+                         height="32"
+                         style="object-fit: cover;">
                     <div class="small">
                         <div class="fw-bold">{{ issue[6] }} <span class="text-muted">{{ issue[7] }}</span></div>
                         <div class="text-muted">{{ issue[5].strftime('%Y-%m-%d %H:%M') }}</div>
                     </div>
                 </div>
 
-                <!-- Issue Title & Description -->
-                <h3 class="h5">{{ issue[2] }}</h3>
+                <!-- Issue Description -->
                 <p class="mb-0">{{ issue[3] }}</p>
             </div>
         </div>
 
         <!-- Comments Section -->
-        <div class="card mb-4">
-            <div class="card-header">
+        <div class="card border-0 shadow">
+            <div class="card-header bg-transparent">
                 <h3 class="h5 mb-0">Comments</h3>
             </div>
             <div class="card-body">
@@ -65,13 +74,15 @@
                 <!-- Comments List -->
                 <div class="comments-list">
                     {% for comment in comments %}
-                    <div class="comment pb-3 mb-3 border-bottom">
+                    <div class="comment {% if not loop.last %}pb-3 mb-3 border-bottom{% endif %}">
                         <!-- Comment Header -->
                         <div class="d-flex gap-2">
                             <img src="{{ comment[7] }}" 
-                                 class="rounded-circle border border-1" 
+                                 class="rounded-circle border" 
                                  alt="Profile picture" 
-                                 style="width: 32px; height: 32px; object-fit: cover;">
+                                 width="32" 
+                                 height="32"
+                                 style="object-fit: cover;">
                             <div class="flex-grow-1">
                                 <div class="d-flex flex-column flex-md-row justify-content-between">
                                     <div class="small">
@@ -89,13 +100,6 @@
                     {% endfor %}
                 </div>
             </div>
-        </div>
-
-        <!-- Back Button -->
-        <div class="mt-3">
-            <a href="{{ url_for('list_issues') }}" class="btn btn-secondary btn-sm">
-                <i class="bi bi-arrow-left"></i> Back to List
-            </a>
         </div>
     {% else %}
         <div class="alert alert-danger">

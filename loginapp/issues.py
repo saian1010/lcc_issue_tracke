@@ -218,3 +218,79 @@ def add_comment(issue_id):
         flash('Failed to add comment. Please try again later')
         
     return redirect(url_for('view_issue', issue_id=issue_id)) 
+
+
+@app.route('/issues/<int:issue_id>/status/<new_status>', methods=['GET'])
+def change_issue_status(issue_id, new_status):
+    # 检查用户是否登录
+    if 'loggedin' not in session:
+        return redirect(url_for('login'))
+    
+    # 检查用户角色权限
+    if session['role'] not in ['helper', 'admin']:
+        flash('You do not have permission to perform this action', 'danger')
+        return redirect(url_for('list_issues'))
+    
+    # 验证状态转换的合法性
+    valid_transitions = {
+        'new': ['open'],
+        'open': ['stalled', 'resolved'],
+        'stalled': ['open', 'resolved'],
+        'resolved': ['open']
+    }
+    
+    cursor = db.get_db().cursor()
+    
+    try:
+        # 获取当前issue状态
+        cursor.execute('SELECT status FROM issues WHERE issue_id = %s', (issue_id,))
+        result = cursor.fetchone()
+        
+        if not result:
+            flash('Issue not found', 'danger')
+            return redirect(url_for('list_issues'))
+        
+        current_status = result[0]
+        
+        # 验证状态转换是否合法
+        if new_status not in valid_transitions.get(current_status, []):
+            flash(f'Invalid status transition from {current_status} to {new_status}', 'danger')
+            return redirect(url_for('list_issues'))
+        
+        # 更新状态
+        cursor.execute(
+            'UPDATE issues SET status = %s WHERE issue_id = %s',
+            (new_status, issue_id)
+        )
+        
+        # 添加状态变更记录到评论
+        status_messages = {
+            'open': 'opened',
+            'stalled': 'marked as stalled',
+            'resolved': 'resolved',
+        }
+        comment = f"Issue {status_messages[new_status]} by {session['username']}"
+        
+        cursor.execute(
+            'INSERT INTO comments (issue_id, content, created_at, user_id) VALUES (%s, %s, NOW(), %s)',
+            (issue_id, comment, session['user_id'])
+        )
+        
+        db.get_db().commit()
+        
+        # 根据不同状态显示不同的成功消息
+        status_change_messages = {
+            'open': 'Issue has been opened',
+            'stalled': 'Issue has been marked as stalled',
+            'resolved': 'Issue has been resolved',
+        }
+        flash(status_change_messages.get(new_status, 'Status updated successfully'), 'success')
+        
+    except Exception as e:
+        print(e)
+        db.get_db().rollback()
+        flash('An error occurred while updating the issue status', 'danger')
+    finally:
+        cursor.close()
+    
+    return redirect(url_for('list_issues'))

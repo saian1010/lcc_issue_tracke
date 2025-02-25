@@ -27,6 +27,24 @@
 	<body>
 		<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
 
+		<!-- Flash Messages Container -->
+		<div class="position-fixed top-0 start-50 translate-middle-x p-3" style="z-index: 1050; max-width: 350px;">
+			{% with messages = get_flashed_messages(with_categories=true) %}
+				{% if messages %}
+					{% for category, message in messages %}
+						<div class="toast align-items-center show mb-2 bg-white shadow-sm" role="alert" aria-live="assertive" aria-atomic="true">
+							<div class="d-flex">
+								<div class="toast-body {% if category == 'danger' %}text-danger{% elif category == 'success' %}text-success{% endif %}">
+									{{ message }}
+								</div>
+								<button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+							</div>
+						</div>
+					{% endfor %}
+				{% endif %}
+			{% endwith %}
+		</div>
+
 		<nav class="navbar navbar-expand-sm navbar-dark bg-primary mb-3">
 			<div class="container-fluid">
 				<a class="navbar-brand" href="/">Login Example</a>
@@ -58,5 +76,39 @@
 		<main>
 			{% block content %}{% endblock %}
 		</main>
+
+		<script>
+		document.addEventListener('DOMContentLoaded', function() {
+			// 获取所有 toast 元素
+			const toasts = document.querySelectorAll('.toast');
+			
+			// 为每个 toast 设置自动消失
+			toasts.forEach((toast, index) => {
+				// 设置延迟时间，每个 toast 依次消失
+				setTimeout(() => {
+					// 创建淡出动画
+					toast.style.transition = 'opacity 0.5s ease-out';
+					toast.style.opacity = '0';
+					
+					// 动画结束后移除元素
+					setTimeout(() => {
+						toast.remove();
+					}, 500);
+				}, 2000 + (index * 500)); // 基础显示时间2秒，每个 toast 额外延迟0.5秒
+			});
+			
+			// 点击关闭按钮立即关闭
+			document.querySelectorAll('.btn-close').forEach(button => {
+				button.addEventListener('click', function() {
+					const toast = this.closest('.toast');
+					toast.style.transition = 'opacity 0.5s ease-out';
+					toast.style.opacity = '0';
+					setTimeout(() => {
+						toast.remove();
+					}, 500);
+				});
+			});
+		});
+		</script>
 	</body>
 </html>
