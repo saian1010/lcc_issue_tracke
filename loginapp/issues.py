@@ -9,45 +9,48 @@ def list_issues():
     if 'loggedin' not in session:
         return redirect(url_for('login'))
         
-    # Get filter parameters
+    page = request.args.get('page', 1, type=int)
     search_name = request.args.get('search_name', '')
     status_filter = request.args.get('status', '')
-    page = request.args.get('page', 1, type=int)
+    is_resolved = request.args.get('resolved', '') == 'true'
+    
     per_page = 10
     offset = (page - 1) * per_page
     
-    cursor = db.get_db().cursor(dictionary=True)
+    cursor = db.get_db().cursor()
     
     # Base query
     query = """
-        SELECT i.issue_id, i.summary, i.status, i.created_at, u.username 
+        SELECT i.*, u.username 
         FROM issues i 
         JOIN users u ON i.user_id = u.user_id 
         WHERE 1=1
     """
-    count_query = "SELECT COUNT(*) as total FROM issues i WHERE 1=1"
     params = []
     
     # Add filters
     if session['role'] == 'visitor':
         query += " AND i.user_id = %s"
-        count_query += " AND i.user_id = %s"
         params.append(session['user_id'])
         
     if search_name:
         query += " AND i.summary LIKE %s"
-        count_query += " AND i.summary LIKE %s"
         params.append(f"%{search_name}%")
         
-    if status_filter:
-        query += " AND i.status = %s"
-        count_query += " AND i.status = %s"
-        params.append(status_filter)
+    # 根据标签页添加状态条件
+    if is_resolved:
+        query += " AND i.status = 'resolved'"
+    else:
+        query += " AND i.status != 'resolved'"
+        if status_filter:
+            query += " AND i.status = %s"
+            params.append(status_filter)
     
     # Get total count for pagination
+    count_query = f"SELECT COUNT(*) FROM ({query}) as t"
     cursor.execute(count_query, params)
-    total_issues = cursor.fetchone()['total']
-    total_pages = (total_issues + per_page - 1) // per_page
+    total_count = cursor.fetchone()[0]
+    total_pages = (total_count + per_page - 1) // per_page
     
     # Add sorting and pagination
     query += " ORDER BY i.created_at DESC LIMIT %s OFFSET %s"
@@ -210,7 +213,6 @@ def add_comment(issue_id):
             """, (issue_id, session['user_id'], content, datetime.now()))
             db.get_db().commit()
             
-        flash('Comment added successfully')
     except Exception as e:
         print(f"Error adding comment: {str(e)}")
         flash('Failed to add comment. Please try again later')

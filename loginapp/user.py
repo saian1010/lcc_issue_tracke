@@ -141,107 +141,75 @@ def login():
     # so we just render the login form with no pre-populated details or flags.
     return render_template('login.html')
 
-@app.route('/signup', methods=['GET','POST'])
+@app.route('/signup', methods=['GET', 'POST'])
 def signup():
-    """Signup (registration) page endpoint.
-
-    Methods:
-    - get: Renders the signup page.
-    - post: Attempts to create a new user account using the details supplied
-        via the signup form, then renders the signup page again with a welcome
-        message (if successful) or one or more error message(s) explaining why
-        signup could not be completed.
-
-    If the user is already logged in, both get and post requests will redirect
-    to their role-specific homepage.
-    """
-    if 'loggedin' in session:
-         return redirect(user_home_url())
-    
-    if request.method == 'POST' and all(field in request.form for field in ['username', 'email', 'password', 'first_name', 'last_name', 'location']):
-        # Get form data and strip whitespace
-        username = request.form['username'].strip()
-        email = request.form['email'].strip()
-        password = request.form['password']  # Don't strip password as spaces might be intentional
-        first_name = request.form['first_name'].strip()
-        last_name = request.form['last_name'].strip()
-        location = request.form['location'].strip()
-
-        # Initialize error variables
-        errors = {}
-
-        # Check if all required fields are present
-        if not all([username, email, password, first_name, last_name, location]):
-            if not username:
-                errors['username_error'] = 'Username is required.'
-            if not email:
-                errors['email_error'] = 'Email is required.'
-            if not password:
-                errors['password_error'] = 'Password is required.'
-            if not first_name:
-                errors['first_name_error'] = 'First name is required.'
-            if not last_name:
-                errors['last_name_error'] = 'Last name is required.'
-            if not location:
-                errors['location_error'] = 'Location is required.'
-        else:
-            # Check for existing username
-            with db.get_cursor() as cursor:
-                cursor.execute('SELECT user_id FROM users WHERE username = %s;',
-                               (username,))
-                account_already_exists = cursor.fetchone() is not None
-            
-            # Validate all fields
-            if account_already_exists:
-                errors['username_error'] = 'An account already exists with this username.'
-            elif len(username) > 20:
-                errors['username_error'] = 'Your username cannot exceed 20 characters.'
-            elif not re.match(r'^[A-Za-z0-9]+$', username):
-                errors['username_error'] = 'Your username can only contain letters and numbers.'            
-
-            if len(email) > 320:
-                errors['email_error'] = 'Your email address cannot exceed 320 characters.'
-            elif not re.match(r'^[^@]+@[^@]+\.[^@]+$', email):
-                errors['email_error'] = 'Invalid email address.'
-                    
-            if len(password) < 8:
-                errors['password_error'] = 'Password must be at least 8 characters long.'
-
-            if len(first_name) > 50:
-                errors['first_name_error'] = 'First name cannot exceed 50 characters.'
-
-            if len(last_name) > 50:
-                errors['last_name_error'] = 'Last name cannot exceed 50 characters.'
-
-            if len(location) > 50:
-                errors['location_error'] = 'Location cannot exceed 50 characters.'
-                    
-        if errors:
-            # Return form with errors and previously entered values
+    if request.method == 'POST':
+        # 获取表单数据
+        username = request.form.get('username')
+        email = request.form.get('email')
+        first_name = request.form.get('first_name')
+        last_name = request.form.get('last_name')
+        location = request.form.get('location')
+        password = request.form.get('password')
+        confirm_password = request.form.get('confirm_password')
+        
+        # 保存表单数据用于错误时回显
+        form_data = {
+            'username': username,
+            'email': email,
+            'first_name': first_name,
+            'last_name': last_name,
+            'location': location
+        }
+        
+        # 验证密码匹配
+        if password != confirm_password:
             return render_template('signup.html',
-                                username=username,
-                                email=email,
-                                first_name=first_name,
-                                last_name=last_name,
-                                location=location,
-                                **errors)
-        else:
-            # Create new account
-            password_hash = flask_bcrypt.generate_password_hash(password)
+                                 confirm_password_error='Passwords do not match',
+                                 **form_data)
+        
+        # 验证密码格式
+        if not re.match(r'^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$', password):
+            return render_template('signup.html',
+                                 password_error='Password must be at least 8 characters long and contain both letters and numbers',
+                                 **form_data)
+        
+        cursor = db.get_db().cursor()
+        
+        try:
+            # 检查用户名是否已存在
+            cursor.execute('SELECT 1 FROM users WHERE username = %s', (username,))
+            if cursor.fetchone():
+                return render_template('signup.html',
+                                     username_error='Username already exists',
+                                     **form_data)
             
-            with db.get_cursor() as cursor:
-                cursor.execute('''
-                    INSERT INTO users (
-                        username, password_hash, email, first_name, last_name,
-                        location, role, status
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
-                    ''',
-                    (username, password_hash, email, first_name, last_name,
-                     location, DEFAULT_USER_ROLE, 'active'))
+            # 检查邮箱是否已存在
+            cursor.execute('SELECT 1 FROM users WHERE email = %s', (email,))
+            if cursor.fetchone():
+                return render_template('signup.html',
+                                     email_error='Email already exists',
+                                     **form_data)
             
-            return render_template('signup.html', signup_successful=True)            
-
-    # GET request or invalid POST
+            # 创建新用户
+            cursor.execute(
+                'INSERT INTO users (username, email, first_name, last_name, location, password_hash, role) VALUES (%s, %s, %s, %s, %s, %s, %s)',
+                (username, email, first_name, last_name, location, flask_bcrypt.generate_password_hash(password), 'visitor')
+            )
+            db.get_db().commit()
+            return render_template('signup.html', signup_successful=True)
+            
+        except Exception as e:
+            print(e)
+            return render_template('signup.html',
+                                 error='An error occurred during registration',
+                                 **form_data)
+        finally:
+            # 确保结果被读取完
+            while cursor.nextset():
+                pass
+            cursor.close()
+    
     return render_template('signup.html')
 
 @app.route('/profile')
@@ -441,6 +409,49 @@ def get_profile_image(filename):
     """Serve profile images."""
     return send_from_directory(UPLOAD_FOLDER, filename)
 
+@app.route('/change_password', methods=['POST'])
+def change_password():
+    if 'loggedin' not in session:
+        return redirect(url_for('login'))
+
+    current_password = request.form.get('current_password')
+    new_password = request.form.get('new_password')
+    confirm_password = request.form.get('confirm_password')
+    
+    cursor = db.get_db().cursor()
+    
+    # 验证当前密码
+    cursor.execute('SELECT password_hash FROM users WHERE user_id = %s', (session['user_id'],))
+    user = cursor.fetchone()
+    if not user or not flask_bcrypt.check_password_hash(user[0], current_password):
+        flash('Current password is incorrect', 'danger')
+        return redirect(url_for('profile'))
+    
+    # 验证新密码
+    if new_password != confirm_password:
+        flash('New passwords do not match', 'danger')
+        return redirect(url_for('profile'))
+    
+    # 验证新密码格式
+    if not re.match(r'^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$', new_password):
+        flash('Password must be at least 8 characters long and contain both letters and numbers', 'danger')
+        return redirect(url_for('profile'))
+    
+    # 验证新密码不能与当前密码相同
+    if flask_bcrypt.check_password_hash(user[0], new_password):
+        flash('New password cannot be the same as current password', 'danger')
+        return redirect(url_for('profile'))
+    
+    # 更新密码
+    cursor.execute(
+        'UPDATE users SET password_hash = %s WHERE user_id = %s',
+        (flask_bcrypt.generate_password_hash(new_password), session['user_id'])
+    )
+    db.get_db().commit()
+    cursor.close()
+    
+    flash('Password has been updated successfully', 'success')
+    return redirect(url_for('profile'))
 
 @app.route('/logout')
 def logout():

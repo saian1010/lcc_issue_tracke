@@ -10,8 +10,7 @@
 <section class="container py-4">
     <div class="row justify-content-center text-center">
         <div class="col-lg-7">
-            <h1 class="h3">{{ profile.role.title() }} Profile</h1>
-            <p class="text-muted small">Manage your profile information</p>
+            <h3>Manage your profile information</h3>
             
             <!-- Flash 消息展示 -->
             {% with messages = get_flashed_messages(with_categories=true) %}
@@ -120,7 +119,7 @@
 
         <!-- 个人信息表单 -->
         <div class="col-12 col-lg-7">
-            <div class="card border-0 shadow-sm">
+            <div class="card border-0 shadow-sm mb-4">
                 <div class="card-body p-4">
                     <form action="{{ url_for('update_profile') }}" method="post">
                         <div class="row g-3">
@@ -168,6 +167,62 @@
                     </form>
                 </div>
             </div>
+
+            <!-- 密码修改表单 -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <h5 class="card-title mb-4">Change Password</h5>
+                    <form action="{{ url_for('change_password') }}" method="post" class="needs-validation" novalidate>
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label class="form-label small text-muted">Current Password *</label>
+                                <input type="password" 
+                                       class="form-control form-control-sm{% if current_password_error %} is-invalid{% endif %}" 
+                                       name="current_password" 
+                                       required>
+                                <div class="invalid-feedback small">{{ current_password_error }}</div>
+                            </div>
+
+                            <div class="col-12">
+                                <label class="form-label small text-muted">New Password *</label>
+                                <input type="password" 
+                                       class="form-control form-control-sm{% if new_password_error %} is-invalid{% endif %}" 
+                                       name="new_password"
+                                       id="new_password"
+                                       pattern="^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$"
+                                       required>
+                                <div class="form-text small">
+                                    Password requirements:
+                                    <ul class="mb-0">
+                                        <li>At least 8 characters long</li>
+                                        <li>Must contain both letters and numbers</li>
+                                        <li>Cannot be the same as your current password</li>
+                                    </ul>
+                                </div>
+                                <div class="invalid-feedback small">
+                                    {{ new_password_error if new_password_error else "Password must meet all requirements above" }}
+                                </div>
+                            </div>
+
+                            <div class="col-12">
+                                <label class="form-label small text-muted">Confirm New Password *</label>
+                                <input type="password" 
+                                       class="form-control form-control-sm{% if confirm_password_error %} is-invalid{% endif %}" 
+                                       name="confirm_password"
+                                       id="confirm_password"
+                                       required>
+                                <div class="invalid-feedback small" id="password-match-feedback">
+                                    {{ confirm_password_error if confirm_password_error else "Passwords do not match" }}
+                                </div>
+                            </div>
+
+                            <div class="col-12 text-center mt-4">
+                                <button type="submit" class="btn btn-primary">Change Password</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
     </div>
 </section>
@@ -175,31 +230,43 @@
 
 {% block scripts %}
 <script>
-// Example starter JavaScript for disabling form submission if there are invalid fields
+// 基础表单验证
 (function () {
-  'use strict'
-
-  // Fetch all the forms we want to apply custom Bootstrap validation styles to
-  var forms = document.querySelectorAll('.needs-validation')
-
-  // Loop over them and prevent submission
-  Array.prototype.slice.call(forms)
-    .forEach(function (form) {
-      form.addEventListener('submit', function (event) {
-        if (!form.checkValidity()) {
-          event.preventDefault()
-          event.stopPropagation()
-        }
-
-        form.classList.add('was-validated')
-      }, false)
+    'use strict'
+    var forms = document.querySelectorAll('.needs-validation')
+    Array.prototype.slice.call(forms).forEach(function (form) {
+        form.addEventListener('submit', function (event) {
+            if (!form.checkValidity()) {
+                event.preventDefault()
+                event.stopPropagation()
+            }
+            form.classList.add('was-validated')
+        }, false)
     })
 })()
 
-// 初始化所有的tooltips
-var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
-var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-    return new bootstrap.Tooltip(tooltipTriggerEl)
-})
+// 密码匹配实时验证
+document.addEventListener('DOMContentLoaded', function() {
+    const newPassword = document.getElementById('new_password');
+    const confirmPassword = document.getElementById('confirm_password');
+    
+    function validatePasswords() {
+        if (confirmPassword.value && newPassword.value !== confirmPassword.value) {
+            confirmPassword.setCustomValidity('Passwords do not match');
+            confirmPassword.classList.add('is-invalid');
+        } else {
+            confirmPassword.setCustomValidity('');
+            if (!confirmPassword.value) {
+                confirmPassword.classList.remove('is-invalid');
+            } else {
+                confirmPassword.classList.remove('is-invalid');
+                confirmPassword.classList.add('is-valid');
+            }
+        }
+    }
+    
+    newPassword.addEventListener('input', validatePasswords);
+    confirmPassword.addEventListener('input', validatePasswords);
+});
 </script>
 {% endblock %}

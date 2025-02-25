@@ -4,11 +4,31 @@
 {% block content %}
 <div class="container mt-4">
     <h2 class="mb-3">Issue List</h2>
+
+    <!-- Tabs -->
+    <ul class="nav nav-tabs mb-4">
+        <li class="nav-item">
+            <a class="nav-link {% if not request.args.get('resolved') %}active{% endif %}" 
+               href="{{ url_for('list_issues') }}">
+                Unresolved Issues
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if request.args.get('resolved') %}active{% endif %}" 
+               href="{{ url_for('list_issues', resolved='true') }}">
+                Resolved Issues
+            </a>
+        </li>
+    </ul>
     
     <!-- Search Form -->
     <div class="card mb-4">
         <div class="card-body">
             <form method="GET">
+                {% if request.args.get('resolved') %}
+                <input type="hidden" name="resolved" value="true">
+                {% endif %}
+                
                 <!-- PC View -->
                 <div class="d-none d-md-block">
                     <div class="row g-2">
@@ -19,20 +39,22 @@
                                    placeholder="Search by issue name"
                                    value="{{ request.args.get('search_name', '') }}">
                         </div>
+                        {% if not request.args.get('resolved') %}
                         <div class="col-md-2">
                             <select class="form-select" name="status">
                                 <option value="">All Status</option>
                                 <option value="new" {% if request.args.get('status') == 'new' %}selected{% endif %}>New</option>
                                 <option value="open" {% if request.args.get('status') == 'open' %}selected{% endif %}>Open</option>
                                 <option value="stalled" {% if request.args.get('status') == 'stalled' %}selected{% endif %}>Stalled</option>
-                                <option value="resolved" {% if request.args.get('status') == 'resolved' %}selected{% endif %}>Resolved</option>
                             </select>
                         </div>
+                        {% endif %}
                         <div class="col-md-2">
                             <button type="submit" class="btn btn-primary w-100">Search</button>
                         </div>
                         <div class="col-md-2">
-                            <a href="{{ url_for('list_issues') }}" class="btn btn-outline-secondary w-100">Reset</a>
+                            <a href="{{ url_for('list_issues', resolved=request.args.get('resolved', '')) }}" 
+                               class="btn btn-outline-secondary w-100">Reset</a>
                         </div>
                     </div>
                 </div>
@@ -47,17 +69,24 @@
                                    placeholder="Search by issue name"
                                    value="{{ request.args.get('search_name', '') }}">
                         </div>
+                        {% if not request.args.get('resolved') %}
                         <div class="col-8">
                             <select class="form-select" name="status">
                                 <option value="">All Status</option>
                                 <option value="new" {% if request.args.get('status') == 'new' %}selected{% endif %}>New</option>
                                 <option value="open" {% if request.args.get('status') == 'open' %}selected{% endif %}>Open</option>
                                 <option value="stalled" {% if request.args.get('status') == 'stalled' %}selected{% endif %}>Stalled</option>
-                                <option value="resolved" {% if request.args.get('status') == 'resolved' %}selected{% endif %}>Resolved</option>
                             </select>
                         </div>
                         <div class="col-4">
+                        {% else %}
+                        <div class="col-12">
+                        {% endif %}
                             <button type="submit" class="btn btn-primary w-100">Search</button>
+                        </div>
+                        <div class="col-12">
+                            <a href="{{ url_for('list_issues', resolved=request.args.get('resolved', '')) }}" 
+                               class="btn btn-outline-secondary w-100">Reset</a>
                         </div>
                     </div>
                 </div>
@@ -70,40 +99,63 @@
         </div>
     </div>
 
-    <div class="table-responsive mb-3">
-        <table class="table table-hover">
-            <thead class="table-light">
-                <tr>
-                    <th>#</th>
-                    <th>Summary</th>
-                    <th>Status</th>
-                    <th>Created By</th>
-                    <th>Created At</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-            <tbody>
-            {% for issue in issues %}
-                <tr>
-                    <td>{{ issue.issue_id }}</td>
-                    <td>{{ issue.summary }}</td>
-                    <td>
-                        <span class="badge bg-{{ {
-                            'new': 'info',
-                            'open': 'primary',
-                            'stalled': 'warning',
-                            'resolved': 'success'
-                        }[issue.status] }}">{{ issue.status }}</span>
-                    </td>
-                    <td>{{ issue.username }}</td>
-                    <td>{{ issue.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
-                    <td>
-                        <a href="{{ url_for('view_issue', issue_id=issue.issue_id) }}" class="btn btn-sm btn-primary">View</a>
-                    </td>
-                </tr>
-            {% endfor %}
-            </tbody>
-        </table>
+    <!-- Issues List -->
+    <div class="d-none d-md-block">
+        <div class="table-responsive mb-3">
+            <table class="table table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>#</th>
+                        <th>Summary</th>
+                        <th>Status</th>
+                        <th>Created By</th>
+                        <th>Created At</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for issue in issues %}
+                    <tr>
+                        <td>{{ issue[0] }}</td>
+                        <td>{{ issue[2] }}</td>
+                        <td>
+                            <span class="badge {% if issue[5] == 'new' %}bg-info{% elif issue[5] == 'open' %}bg-primary{% elif issue[5] == 'stalled' %}bg-warning{% else %}bg-success{% endif %}">
+                                {{ issue[5] }}
+                            </span>
+                        </td>
+                        <td>{{ issue[6] }}</td>
+                        <td>{{ issue[4] }}</td>
+                        <td>
+                            <a href="{{ url_for('view_issue', issue_id=issue[0]) }}" class="btn btn-sm btn-primary">View</a>
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Mobile View -->
+    <div class="d-md-none">
+        {% for issue in issues %}
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <h6 class="card-title mb-0">#{{ issue[0] }} {{ issue[2] }}</h6>
+                    <span class="badge {% if issue[5] == 'new' %}bg-info{% elif issue[5] == 'open' %}bg-primary{% elif issue[5] == 'stalled' %}bg-warning{% else %}bg-success{% endif %}">
+                        {{ issue[5] }}
+                    </span>
+                </div>
+                <div class="text-muted small">
+                    <div>{{ issue[6] }}</div>
+                    <div>{{ issue[4] }}</div>
+                </div>
+                <div class="mt-2">
+                    <a href="{{ url_for('view_issue', issue_id=issue[0]) }}" class="btn btn-sm btn-primary">View</a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
     </div>
 
     {% if total_pages > 1 %}
